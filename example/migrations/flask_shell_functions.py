@@ -1,5 +1,6 @@
 import os
 import json
+import argparse
 
 from flask import g
 from ereuse_devicehub.resources.user.models import User
@@ -16,7 +17,7 @@ def generate_computers(email):
     g.user = u
     dhids = [["dhid", "uuid", "created"]]
     devsLots = [["lot_name", "dhid", "incoming", "outgoing"]]
-    PATH_SNAPSHOTS = "2026-01-05/snapshots"
+    PATH_SNAPSHOTS = "2026-03-16/snapshots"
     uuids = []
 
     # get uuids form real snapshots
