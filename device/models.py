@@ -453,7 +453,7 @@ class Device:
                 case "Motherboard":
                     hardware_info.update({
                         'manufacturer': c.get("manufacturer", ""),
-                        'serial': c.get("serialNumber", ""),
+                        'serial': self.serial_number,
                         'ram_total': c.get("installedRam", ""),
                     })
                 case "Processor":
