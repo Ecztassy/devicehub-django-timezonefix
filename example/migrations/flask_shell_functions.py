@@ -6,7 +6,12 @@ from flask import g
 from ereuse_devicehub.resources.user.models import User
 from ereuse_devicehub.resources.action.models import Snapshot
 from ereuse_devicehub.resources.lot.models import Lot
-from ereuse_devicehub.resources.device.models import ComputerMonitor, Monitor, Computer
+from ereuse_devicehub.resources.device.models import (
+    Computer,
+    ComputerMonitor,
+    DataStorage,
+    Monitor,
+)
 
 
 
@@ -87,6 +92,56 @@ def generate_monitors(email):
         _f.write("\n".join([";".join(l) for l in mlots]))
 
 
+# ==============    DataStorage    ================== #
+def generate_datastorage(email):
+    u = User.query.filter(User.email==email).first()
+    g.user = u
+    hdds = [["dhid", "manufacturer", "model", "serial_number", "created", "type", "size"]]
+    mlots = [["lot_name", "dhid", "incoming", "outgoing"]]
+
+    pls = set()
+    rest = set()
+
+    for x in DataStorage.query.filter_by(owner=u):
+          if not x.orphan:
+              continue
+          if x.binding or x.placeholder:
+              pls.add(x.binding or x.placeholder)
+          else:
+              rest.add(x)
+
+    for p in pls:
+        if not p:
+            continue
+
+        if p.binding:
+            c = p.binding
+        else:
+            c = p.device
+
+        dhid = p.device.devicehub_id
+        d = c.created.strftime("%Y-%m-%d %H:%M:%S.%f%z")
+        hdds.append([dhid, c.manufacturer or "", c.model or "", str(c.serial_number), d, c.type, c.get_size()])
+
+        for l in p.device.lots:
+            mlots.append([l.name, dhid, l.is_incoming and "1" or "", l.is_outgoing and "1" or ""])
+
+    for c in rest:
+        dhid = c.devicehub_id
+        d = c.created.strftime("%Y-%m-%d %H:%M:%S.%f%z")
+        hdds.append([dhid, c.manufacturer or "", c.model or "", str(c.serial_number), d, c.type, c.get_size()])
+
+        for l in c.lots:
+            mlots.append([l.name, dhid, l.is_incoming and "1" or "", l.is_outgoing and "1" or ""])
+
+    with open("datastorage.csv", "w") as _f:
+        _f.write("\n".join([";".join(l) for l in hdds]))
+
+    with open("datastorage-lots.csv", "w") as _f:
+        _f.write("\n".join([";".join(l) for l in mlots]))
+
+
+# ==============    Placeholder    ================== #
 def generate_placeholder(email):
     u = User.query.filter(User.email==email).first()
     g.user = u
