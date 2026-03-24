@@ -25,7 +25,9 @@ class ParseSnapshot:
     def __init__(self, snapshot, default="n/a"):
         self.default = default
         self.dmidecode_raw = snapshot["data"].get("dmidecode", "{}")
-        self.smart_raw = snapshot["data"].get("disks", [])
+        self.smart_raw = snapshot["data"].get("smart", [])
+        if not self.smart_raw:
+            self.smart_raw = snapshot["data"].get("disks", [])
         self.hwinfo_raw = snapshot["data"].get("hwinfo", "")
         self.lshw_raw = snapshot["data"].get("lshw", {}) or {}
         self.lscpi_raw = snapshot["data"].get("lspci", "")
