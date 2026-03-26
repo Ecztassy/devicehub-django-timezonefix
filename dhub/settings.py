@@ -188,7 +188,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = config("DEVICEHUB_TIME_ZONE", default="UTC").strip or "UTC"
+TIME_ZONE = config("DEVICEHUB_TIME_ZONE", default="UTC")
 
 USE_I18N = True
 
