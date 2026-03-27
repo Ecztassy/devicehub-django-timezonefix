@@ -40,6 +40,7 @@ class Device:
         self.pk = self.id
         self.hid = self.id.split(":")[1]
         self.algorithm = None
+        self.alias = None
         self.owner = kwargs.get("owner")
         self.properties = []
         self.hids = []
@@ -53,12 +54,12 @@ class Device:
     def get_shortid(self):
         self.shortid = self.pk.split(":")[1][:6].upper()
         if self.owner:
-            alias = RootAlias.objects.filter(
+            self.alias = RootAlias.objects.filter(
                 owner=self.owner,
                 alias=self.pk
             ).first()
-            if alias:
-                self.shortid = alias.root.split(":")[1][:6].upper()
+            if self.alias:
+                self.shortid = self.alias.root.split(":")[1][:6].upper()
 
     def initial(self):
         self.get_properties()
@@ -124,6 +125,9 @@ class Device:
         self.hids = list(set([x.value for x in properties.filter(
             key__in=algos,
         )]))
+
+        if "custom_id" in self.pk:
+            self.hids.append(self.pk)
 
     def get_evidences(self):
         if not self.uuids:
