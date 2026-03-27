@@ -205,11 +205,10 @@ class AddToLotView(DashboardView, FormView):
         })
         return context
 
-    def get_form(self):
-        form = super().get_form()
-        form.fields["lots"].queryset = Lot.objects.filter(
-            owner=self.request.user.institution)
-        return form
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["institution"] = self.request.user.institution
+        return kwargs
 
     def form_valid(self, form):
         form.devices = self.get_session_devices()

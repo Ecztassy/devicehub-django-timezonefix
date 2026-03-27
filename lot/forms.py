@@ -13,12 +13,18 @@ from lot.models import (
 
 class LotsForm(forms.Form):
     lots = forms.ModelMultipleChoiceField(
-        queryset=Lot.objects.filter(archived=False),
+        queryset=Lot.objects.none(),
         widget=forms.CheckboxSelectMultiple,
     )
 
     def __init__(self, *args, **kwargs):
+        institution = kwargs.pop("institution", None)
         super().__init__(*args, **kwargs)
+
+        if institution:
+            self.fields['lots'].queryset = Lot.objects.filter(
+                owner=institution, archived=False
+            )
 
         #grouping lots by their lot group for more readability
         self.grouped_lots = {}
