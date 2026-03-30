@@ -231,6 +231,7 @@
             const selectAllFlag = document.getElementById('select-all-pages-flag');
             const selectionCount = document.getElementById('selection-count');
             const totalCount = {{ count }};
+            const totalPages = {{ total_pages|default:1 }};
 
             let selectAllMode = false;
 
@@ -239,7 +240,7 @@
                 addButton.disabled = !anyChecked;
                 changeStateButton.classList.toggle('disabled', !anyChecked);
                 if (removeButton) removeButton.disabled = !anyChecked;
-                if (addBeneficiaryButton) addBeneficiaryButton.disabled = !anyChecked;
+                if (addBeneficiaryButton) addBeneficiaryButton.disabled = (selectAllMode && totalPages > 1) || !anyChecked;
             }
 
             function updateMasterCheckbox() {
