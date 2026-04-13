@@ -161,6 +161,14 @@ class DetailsView(DashboardView, TemplateView ):
         device_logs = DeviceLog.objects.filter(
             snapshot_uuid__in=uuids).order_by('-date')
         device_notes = Note.objects.filter(snapshot_uuid__in=uuids).order_by('-date')
+
+        web_pk = self.pk
+        if self.pk.startswith("custom_id:"):
+            for h in self.object.hids:
+                if not h.startswith("custom_id:"):
+                    web_pk = h
+                    break
+
         context.update({
             'object': self.object,
             'snapshot': last_evidence,
@@ -172,6 +180,7 @@ class DetailsView(DashboardView, TemplateView ):
             "device_logs": device_logs,
             "device_notes": device_notes,
             "table": evidence_table,
+            "web_pk": web_pk,
         })
         return context
 
