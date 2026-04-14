@@ -100,13 +100,23 @@ class DetailsMixin(DashboardView, TemplateView):
 
 class InventaryMixin(DashboardView, TemplateView):
 
+    def get_all_device_ids(self):
+        """Override in view subclasses to return all device IDs for the current context."""
+        return []
+
     def post(self, request, *args, **kwargs):
         post = dict(self.request.POST)
         url = post.get("url")
 
         if url:
-            dev_ids = post.get("devices", [])
-            self.request.session["devices"] = dev_ids
+            select_all_pages = post.get("select_all_pages", ["false"])[0].lower() == "true"
+
+            if select_all_pages:
+                all_ids = self.get_all_device_ids()
+                self.request.session["devices"] = all_ids
+            else:
+                dev_ids = post.get("devices", [])
+                self.request.session["devices"] = dev_ids
 
             try:
                 resource = resolve(url[0])
