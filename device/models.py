@@ -88,7 +88,7 @@ class Device:
                 value__in=roots
             ).order_by("-created")
         else:
-            # TODO is good not filter from owner?
+            # Is good not filter from owner for public view of device
             self.properties = SystemProperty.objects.filter(
                 value=self.id
             ).order_by("-created")
@@ -175,8 +175,15 @@ class Device:
         return State.objects.filter(snapshot_uuid=uuid).order_by('-date').first()
 
     def get_lots(self):
+        device_id = self.id
+        if self.id.startswith("custom_id:"):
+            ra = RootAlias.objects.filter(root=self.id, owner=self.owner
+                                             ).order_by("-created").first()
+            if ra:
+                device_id = ra.alias
+
         self.lots = [
-            x.lot for x in DeviceLot.objects.filter(device_id=self.id)
+            x.lot for x in DeviceLot.objects.filter(device_id=device_id)
             .select_related('lot__type')
             .order_by('-lot__type__name', '-lot__created')
         ]
@@ -404,8 +411,15 @@ class Device:
         if not self.lot:
             return ''
 
+        device_id = self.id
+        if self.id.startswith("custom_id:"):
+            ra = RootAlias.objects.filter(root=self.id, owner=self.owner
+                                             ).order_by("-created").first()
+            if ra:
+                device_id = ra.alias
+
         dev = DeviceBeneficiary.objects.filter(
-            device_id=self.id,
+            device_id=device_id,
             beneficiary__lot=self.lot
         ).first()
 

@@ -938,7 +938,7 @@ class ListDevicesBeneficiaryView(DashboardLotMixing, BeneficiaryEmail, FormView)
         formset = form_class(**self.get_form_kwargs())
 
         for f in formset:
-            f.device = Device(id=f.instance.device_id)
+            f.device = Device(id=f.instance.device_id, owner=self.request.user.institution)
             choices = f.fields['status'].choices
             f.fields['status'].choices = choices[1:]
 

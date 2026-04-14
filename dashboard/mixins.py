@@ -6,7 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic.base import TemplateView
 from device.models import Device
-from evidence.models import SystemProperty
+from evidence.models import SystemProperty, RootAlias
 from lot.models import LotTag
 from action.models import StateDefinition
 from dashboard.tables import DeviceTable
@@ -56,7 +56,22 @@ class DashboardView(LoginRequiredMixin):
         dev_ids = self.request.session.pop("devices", [])
 
         self._devices = []
-        dev_ids_list = SystemProperty.objects.filter(value__in=dev_ids)
+
+        custom_ids = [d for d in dev_ids if d.startswith("custom_id:")]
+        regular_ids = [d for d in dev_ids if not d.startswith("custom_id:")]
+
+        if custom_ids:
+            root_aliases = RootAlias.objects.filter(
+                root__in=custom_ids,
+                owner=self.request.user.institution
+            ).order_by("-created")
+            seen_roots = set()
+            for ra in root_aliases:
+                if ra.root not in seen_roots:
+                    seen_roots.add(ra.root)
+                    regular_ids.append(ra.alias)
+
+        dev_ids_list = SystemProperty.objects.filter(value__in=regular_ids)
         dev_org = dev_ids_list.filter(owner=self.request.user.institution)
         dev_org_set = set(x.value for x in dev_org)
         for x in dev_org_set:
