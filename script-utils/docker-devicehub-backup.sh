@@ -10,6 +10,7 @@ set -x
 main() {
         docker compose exec devicehub-django \
                sh -c 'gosu $(cat /app_user) ./manage.py dbbackup'
+               sh -c 'gosu $(cat /app_user) ./manage.py evidence_backup'
 }
 
 main "${@}"

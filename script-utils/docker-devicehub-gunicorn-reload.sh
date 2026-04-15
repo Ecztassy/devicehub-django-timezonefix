@@ -9,8 +9,7 @@ set -x
 
 main() {
         docker compose exec devicehub-django \
-               sh -c 'gosu $(cat /app_user) ./manage.py dbrestore --noinput'
-               sh -c 'gosu $(cat /app_user) ./manage.py evidence_restore'
+               sh -c 'pkill -HUP -f gunicorn'
 }
 
 main "${@}"
