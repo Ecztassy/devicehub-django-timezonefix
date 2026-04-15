@@ -169,8 +169,10 @@ class DeviceTableMixin():
 
     def build_table_row(self, device):
         current_state = device.get_current_state()
+
         return {
             'id': device.pk,
+            'link_pk': device.link_pk,
             'shortid': device.shortid,
             'type': device.type,
             'manufacturer': getattr(device, 'manufacturer', ''),

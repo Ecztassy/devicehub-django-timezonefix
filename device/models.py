@@ -40,6 +40,7 @@ class Device:
         self.pk = self.id
         self.hid = self.id.split(":")[1]
         self.algorithm = None
+        self.alias = None
         self.owner = kwargs.get("owner")
         self.properties = []
         self.hids = []
@@ -53,12 +54,12 @@ class Device:
     def get_shortid(self):
         self.shortid = self.pk.split(":")[1][:6].upper()
         if self.owner:
-            alias = RootAlias.objects.filter(
+            self.alias = RootAlias.objects.filter(
                 owner=self.owner,
                 alias=self.pk
             ).first()
-            if alias:
-                self.shortid = alias.root.split(":")[1][:6].upper()
+            if self.alias:
+                self.shortid = self.alias.root.split(":")[1][:6].upper()
 
     def initial(self):
         self.get_properties()
@@ -124,6 +125,9 @@ class Device:
         self.hids = list(set([x.value for x in properties.filter(
             key__in=algos,
         )]))
+
+        if "custom_id" in self.pk:
+            self.hids.append(self.pk)
 
     def get_evidences(self):
         if not self.uuids:
@@ -343,7 +347,7 @@ class Device:
     @property
     def last_user_evidence(self):
         self.get_last_evidence()
-        return self.last_evidence.doc['kv'].items()
+        return self.last_evidence.doc.get('kv', {}).items()
 
     @property
     def manufacturer(self):
@@ -428,6 +432,21 @@ class Device:
             status = DeviceBeneficiary.Status(dev.status).label
 
         return status
+
+    @property
+    def web_pk(self):
+        if self.pk.startswith("custom_id:"):
+            for h in self.hids:
+                if not h.startswith("custom_id:"):
+                    return h
+
+        return self.pk
+
+    @property
+    def link_pk(self):
+        if self.alias and self.alias.root.startswith("custom_id:"):
+            return self.alias.root
+        return self.pk
 
     def components_export(self):
         self.get_last_evidence()

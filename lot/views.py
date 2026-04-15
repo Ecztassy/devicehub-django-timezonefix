@@ -117,14 +117,15 @@ class DeleteLotsView(LotSuccessUrlMixin, DashboardView, TemplateView ):
 
     def get(self, request, *args, **kwargs):
         selected_ids = request.GET.getlist('select')
-        if not selected_ids:
-            messages.error(request, _("No lots selected for deletion."))
-            return redirect(self.success_url)
         # check ownership
         lots_to_delete = Lot.objects.filter(
             id__in=selected_ids,
             owner=request.user.institution
         )
+        if not lots_to_delete.first():
+            messages.error(request, _("No lots selected for deletion."))
+            return redirect(self.success_url)
+
         context = {
             'lots': lots_to_delete,
             'lots_with_devices': any(lot.devices.exists() for lot in lots_to_delete),
@@ -136,14 +137,14 @@ class DeleteLotsView(LotSuccessUrlMixin, DashboardView, TemplateView ):
 
     def post(self, request, *args, **kwargs):
         selected_ids = request.POST.getlist('selected_ids')
-        if not selected_ids:
-            messages.error(request, _("No lots selected for deletion."))
-            return redirect(self.success_url)
-
         lots_to_delete = Lot.objects.filter(
             id__in=selected_ids,
             owner=request.user.institution
         )
+
+        if not lots_to_delete.first():
+            messages.error(request, _("No lots selected for deletion."))
+            return redirect(self.success_url)
 
         lot_tag = lots_to_delete.first().type
         deleted_count = lots_to_delete.delete()
@@ -205,11 +206,10 @@ class AddToLotView(DashboardView, FormView):
         })
         return context
 
-    def get_form(self):
-        form = super().get_form()
-        form.fields["lots"].queryset = Lot.objects.filter(
-            owner=self.request.user.institution)
-        return form
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["institution"] = self.request.user.institution
+        return kwargs
 
     def form_valid(self, form):
         form.devices = self.get_session_devices()
@@ -234,6 +234,7 @@ class DelToLotView(DashboardView, View):
         try:
             lot = Lot.objects.filter(
                 id=lot_id,
+                owner=self.request.user.institution,
             ).first()
 
             beneficiary = []

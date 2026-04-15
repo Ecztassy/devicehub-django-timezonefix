@@ -98,6 +98,7 @@ class LotDashboardView(ExportMixin, SingleTableMixin, InventaryMixin, DetailsMix
             current_state = device.get_current_state()
             row.record.update({
                 'shortid': device.shortid,
+                'link_pk': device.link_pk,
                 'type': device.type,
                 'manufacturer': getattr(device, 'manufacturer', ''),
                 'model': getattr(device, 'model', ''),
@@ -170,6 +171,7 @@ class LotDashboardView(ExportMixin, SingleTableMixin, InventaryMixin, DetailsMix
                 current_state = device.get_current_state()
                 table_data.append({
                     'id': device.pk,
+                    'link_pk': device.link_pk,
                     'shortid': device.shortid,
                     'type': device.type,
                     'manufacturer': getattr(device, 'manufacturer', ''),
