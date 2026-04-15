@@ -433,6 +433,21 @@ class Device:
 
         return status
 
+    @property
+    def web_pk(self):
+        if self.pk.startswith("custom_id:"):
+            for h in self.hids:
+                if not h.startswith("custom_id:"):
+                    return h
+
+        return self.pk
+
+    @property
+    def link_pk(self):
+        if self.alias and self.alias.root.startswith("custom_id:"):
+            return self.alias.root
+        return self.pk
+
     def components_export(self):
         self.get_last_evidence()
 

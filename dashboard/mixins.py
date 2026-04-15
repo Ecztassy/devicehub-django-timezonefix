@@ -169,11 +169,10 @@ class DeviceTableMixin():
 
     def build_table_row(self, device):
         current_state = device.get_current_state()
-        alias = device.alias
-        link_pk = alias.root if (alias and alias.root.startswith("custom_id:")) else device.pk
+
         return {
             'id': device.pk,
-            'link_pk': link_pk,
+            'link_pk': device.link_pk,
             'shortid': device.shortid,
             'type': device.type,
             'manufacturer': getattr(device, 'manufacturer', ''),
