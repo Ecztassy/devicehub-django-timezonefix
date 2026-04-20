@@ -36,7 +36,7 @@ class Command(BaseCommand):
             )
 
     def create_demo_lots(self):
-        for g in LotTag.objects.all():
+        for g in LotTag.objects.filter(owner=self.institution):
             if g.name == "Entrada":
                 Lot.objects.create(
                     name="donante-orgA",

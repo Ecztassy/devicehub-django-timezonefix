@@ -15,14 +15,11 @@ logger = logging.getLogger('django')
 
 class Command(BaseCommand):
     help = "Reindex snapshots"
-    snapshots = []
     EVIDENCES = settings.EVIDENCES_DIR
 
     def handle(self, *args, **kwargs):
         if os.path.isdir(self.EVIDENCES):
             self.read_files(self.EVIDENCES)
-
-        self.parsing()
 
     def read_files(self, directory):
         for filename in os.listdir(directory):
@@ -34,7 +31,8 @@ class Command(BaseCommand):
 
             if not institution:
                 continue
-            user = institution.user_set.filter(is_admin=True).first()
+
+            user = institution.users.filter(is_admin=True).first()
             if not user:
                 txt = "No there are Admins for the institution: %s"
                 logger.warning(txt, institution.name)
@@ -45,39 +43,36 @@ class Command(BaseCommand):
 
             for f in os.listdir(snapshots_path):
                 f_path = os.path.join(snapshots_path, f)
-
                 if f_path[-5:] == ".json" and os.path.isfile(f_path):
-                    self.open(f_path, user)
+                    self.process(f_path, user)
 
             for f in os.listdir(placeholders_path):
                 f_path = os.path.join(placeholders_path, f)
-
                 if f_path[-5:] == ".json" and os.path.isfile(f_path):
-                    self.open(f_path, user)
+                    self.process(f_path, user)
 
-    def open(self, filepath, user):
-        with open(filepath, 'r') as file:
-            content = json.loads(file.read())
-            self.snapshots.append((content, user, filepath))
+    def process(self, filepath, user):
+        try:
+            with open(filepath, 'r') as f:
+                content = json.loads(f.read())
+        except Exception:
+            logger.warning("Not can open %s", filepath)
+            return
 
-    def parsing(self):
-        for s, user, f_path in self.snapshots:
-            if s.get("type") == "Websnapshot":
-                self.build_placeholder(s, user, f_path)
-            else:
-                self.build_snapshot(s, user, f_path)
+        if content.get("type") == "Websnapshot":
+            self.build_placeholder(content, user, filepath)
+        else:
+            self.build_snapshot(content, user, filepath)
 
     def build_placeholder(self, s, user, f_path):
-            try:
-                create_index(s, user)
-                create_property(s, user, commit=True)
-            except Exception as err:
-                txt = "In placeholder %s \n%s"
-                logger.warning(txt, f_path, err)
-                
+        try:
+            create_index(s, user)
+            create_property(s, user, commit=True)
+        except Exception as err:
+            logger.warning("In placeholder %s \n%s", f_path, err)
+
     def build_snapshot(self, s, user, f_path):
-            try:
-                Build(s, user)
-            except Exception:
-                txt = "Error: in Snapshot {}".format(f_path)
-                logger.error(txt)
+        try:
+            Build(s, user)
+        except Exception:
+            logger.error("Error: in Snapshot %s", f_path)

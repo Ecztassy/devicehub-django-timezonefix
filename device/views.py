@@ -18,11 +18,11 @@ from django.views.generic.base import TemplateView
 from action.models import StateDefinition, State, DeviceLog, Note
 from dashboard.mixins import DashboardView, Http403
 from environmental_impact.algorithms.algorithm_factory import FactoryEnvironmentImpactAlgorithm
-from evidence.models import UserProperty, SystemProperty, Evidence
+from evidence.models import UserProperty, SystemProperty, Evidence, RootAlias
 from lot.models import LotTag
 from device.models import Device
 from device.forms import DeviceFormSet
-from evidence.models import SystemProperty
+from evidence.models import SystemProperty, RootAlias
 from evidence.tables import EvidenceTable
 from django_tables2 import RequestConfig
 if settings.DPP:
@@ -87,6 +87,14 @@ class DetailsView(DashboardView, TemplateView ):
 
     def get(self, request, *args, **kwargs):
         self.pk = kwargs['pk']
+        root = RootAlias.objects.filter(
+            owner=self.request.user.institution,
+            alias=self.pk
+        ).first()
+
+        if root:
+            return redirect(reverse_lazy('device:details', args=[root.root]))
+
         self.object = Device(id=self.pk, owner=self.request.user.institution)
         if not self.object.last_evidence:
             raise Http404
@@ -153,6 +161,7 @@ class DetailsView(DashboardView, TemplateView ):
         device_logs = DeviceLog.objects.filter(
             snapshot_uuid__in=uuids).order_by('-date')
         device_notes = Note.objects.filter(snapshot_uuid__in=uuids).order_by('-date')
+
         context.update({
             'object': self.object,
             'snapshot': last_evidence,
@@ -163,7 +172,7 @@ class DetailsView(DashboardView, TemplateView ):
             "device_states": device_states,
             "device_logs": device_logs,
             "device_notes": device_notes,
-            "table": evidence_table,
+            "table": evidence_table
         })
         return context
 
@@ -254,6 +263,17 @@ class AddUserPropertyView(DeviceLogMixin, CreateView):
     def get_form_kwargs(self):
         pk = self.kwargs.get('pk')
         institution = self.request.user.institution
+
+        if 'custom_id' in pk:
+            alias = RootAlias.objects.filter(
+                root=pk,
+                owner=institution
+            ).first()
+
+            if not alias:
+                raise Http404
+            pk = alias.alias
+
         self.property = SystemProperty.objects.filter(
             owner=institution, value=pk).first()
         if not self.property:

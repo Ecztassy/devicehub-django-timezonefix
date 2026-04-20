@@ -6,7 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic.base import TemplateView
 from device.models import Device
-from evidence.models import SystemProperty
+from evidence.models import SystemProperty, RootAlias
 from lot.models import LotTag
 from action.models import StateDefinition
 from dashboard.tables import DeviceTable
@@ -56,7 +56,22 @@ class DashboardView(LoginRequiredMixin):
         dev_ids = self.request.session.pop("devices", [])
 
         self._devices = []
-        dev_ids_list = SystemProperty.objects.filter(value__in=dev_ids)
+
+        custom_ids = [d for d in dev_ids if d.startswith("custom_id:")]
+        regular_ids = [d for d in dev_ids if not d.startswith("custom_id:")]
+
+        if custom_ids:
+            root_aliases = RootAlias.objects.filter(
+                root__in=custom_ids,
+                owner=self.request.user.institution
+            ).order_by("-created")
+            seen_roots = set()
+            for ra in root_aliases:
+                if ra.root not in seen_roots:
+                    seen_roots.add(ra.root)
+                    regular_ids.append(ra.alias)
+
+        dev_ids_list = SystemProperty.objects.filter(value__in=regular_ids)
         dev_org = dev_ids_list.filter(owner=self.request.user.institution)
         dev_org_set = set(x.value for x in dev_org)
         for x in dev_org_set:
@@ -85,13 +100,23 @@ class DetailsMixin(DashboardView, TemplateView):
 
 class InventaryMixin(DashboardView, TemplateView):
 
+    def get_all_device_ids(self):
+        """Override in view subclasses to return all device IDs for the current context."""
+        return []
+
     def post(self, request, *args, **kwargs):
         post = dict(self.request.POST)
         url = post.get("url")
 
         if url:
-            dev_ids = post.get("devices", [])
-            self.request.session["devices"] = dev_ids
+            select_all_pages = post.get("select_all_pages", ["false"])[0].lower() == "true"
+
+            if select_all_pages:
+                all_ids = self.get_all_device_ids()
+                self.request.session["devices"] = all_ids
+            else:
+                dev_ids = post.get("devices", [])
+                self.request.session["devices"] = dev_ids
 
             try:
                 resource = resolve(url[0])
@@ -144,8 +169,10 @@ class DeviceTableMixin():
 
     def build_table_row(self, device):
         current_state = device.get_current_state()
+
         return {
             'id': device.pk,
+            'link_pk': device.link_pk,
             'shortid': device.shortid,
             'type': device.type,
             'manufacturer': getattr(device, 'manufacturer', ''),

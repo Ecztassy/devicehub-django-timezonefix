@@ -144,7 +144,7 @@ class User(AbstractBaseUser):
     def get_full_name(self):
         if self.first_name:
             return f"{self.first_name}{self.last_name}"
-        else: return _("None")
+
 
     @property
     def is_staff(self):

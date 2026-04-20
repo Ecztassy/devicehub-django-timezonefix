@@ -147,6 +147,11 @@ def migrate_snapshots(snap_path, user):
     # if snapshot.get('version') == "2022.12.2-beta":
     #     return
 
+    uuid = snapshot.get('uuid') or snapshot.get('credentialSubject', {}).get('uuid')
+    if uuid and SystemProperty.objects.filter(uuid=uuid, owner=user.institution).exists():
+        logger.info("Snapshot %s already registered, skipping", uuid)
+        return
+
     # insert snapshot
     path_name = save_in_disk(snapshot, user.institution.name)
     build = Build(snapshot, user)

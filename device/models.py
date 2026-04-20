@@ -40,6 +40,7 @@ class Device:
         self.pk = self.id
         self.hid = self.id.split(":")[1]
         self.algorithm = None
+        self.alias = None
         self.owner = kwargs.get("owner")
         self.properties = []
         self.hids = []
@@ -53,12 +54,12 @@ class Device:
     def get_shortid(self):
         self.shortid = self.pk.split(":")[1][:6].upper()
         if self.owner:
-            alias = RootAlias.objects.filter(
+            self.alias = RootAlias.objects.filter(
                 owner=self.owner,
                 alias=self.pk
             ).first()
-            if alias:
-                self.shortid = alias.root.split(":")[1][:6].upper()
+            if self.alias:
+                self.shortid = self.alias.root.split(":")[1][:6].upper()
 
     def initial(self):
         self.get_properties()
@@ -88,7 +89,7 @@ class Device:
                 value__in=roots
             ).order_by("-created")
         else:
-            # TODO is good not filter from owner?
+            # Is good not filter from owner for public view of device
             self.properties = SystemProperty.objects.filter(
                 value=self.id
             ).order_by("-created")
@@ -124,6 +125,9 @@ class Device:
         self.hids = list(set([x.value for x in properties.filter(
             key__in=algos,
         )]))
+
+        if "custom_id" in self.pk:
+            self.hids.append(self.pk)
 
     def get_evidences(self):
         if not self.uuids:
@@ -175,8 +179,15 @@ class Device:
         return State.objects.filter(snapshot_uuid=uuid).order_by('-date').first()
 
     def get_lots(self):
+        device_id = self.id
+        if self.id.startswith("custom_id:"):
+            ra = RootAlias.objects.filter(root=self.id, owner=self.owner
+                                             ).order_by("-created").first()
+            if ra:
+                device_id = ra.alias
+
         self.lots = [
-            x.lot for x in DeviceLot.objects.filter(device_id=self.id)
+            x.lot for x in DeviceLot.objects.filter(device_id=device_id)
             .select_related('lot__type')
             .order_by('-lot__type__name', '-lot__created')
         ]
@@ -291,7 +302,7 @@ class Device:
     @classmethod
     def get_all_orm(cls, institution, offset=0, limit=None):
         qry = cls.queryset_orm(institution)
-        evs = qry[offset:offset+limit]
+        evs = qry[offset:] if limit is None else qry[offset:offset+limit]
         count = qry.count()
         devices = [cls(id=x, owner=institution) for x in evs]
         return devices, count
@@ -299,7 +310,7 @@ class Device:
     @classmethod
     def get_unassigned_orm(cls, institution, offset=0, limit=20):
         qry = cls.queryset_orm_unassigned(institution)
-        evs = qry[offset:offset+limit]
+        evs = qry[offset:] if limit is None else qry[offset:offset+limit]
         count = qry.count()
         devices = [cls(id=x, owner=institution) for x in evs]
         return devices, count
@@ -336,7 +347,7 @@ class Device:
     @property
     def last_user_evidence(self):
         self.get_last_evidence()
-        return self.last_evidence.doc['kv'].items()
+        return self.last_evidence.doc.get('kv', {}).items()
 
     @property
     def manufacturer(self):
@@ -404,8 +415,15 @@ class Device:
         if not self.lot:
             return ''
 
+        device_id = self.id
+        if self.id.startswith("custom_id:"):
+            ra = RootAlias.objects.filter(root=self.id, owner=self.owner
+                                             ).order_by("-created").first()
+            if ra:
+                device_id = ra.alias
+
         dev = DeviceBeneficiary.objects.filter(
-            device_id=self.id,
+            device_id=device_id,
             beneficiary__lot=self.lot
         ).first()
 
@@ -414,6 +432,21 @@ class Device:
             status = DeviceBeneficiary.Status(dev.status).label
 
         return status
+
+    @property
+    def web_pk(self):
+        if self.pk.startswith("custom_id:"):
+            for h in self.hids:
+                if not h.startswith("custom_id:"):
+                    return h
+
+        return self.pk
+
+    @property
+    def link_pk(self):
+        if self.alias and self.alias.root.startswith("custom_id:"):
+            return self.alias.root
+        return self.pk
 
     def components_export(self):
         self.get_last_evidence()

@@ -48,7 +48,7 @@ class UsersView(AdminView, SingleTableView):
     table_class = UserTable
 
     def get_queryset(self):
-        return User.objects.filter()
+        return User.objects.filter(institution=self.request.user.institution)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -110,7 +110,7 @@ class EditUserView(AdminView, UpdateView):
 
     def get_form_kwargs(self):
         pk = self.kwargs.get('pk')
-        self.object = get_object_or_404(self.model, pk=pk)
+        self.object = get_object_or_404(self.model, pk=pk, institution=self.request.user.institution)
         #self.object.set_password(self.object.password)
         kwargs = super().get_form_kwargs()
         return kwargs

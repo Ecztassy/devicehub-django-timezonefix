@@ -6,7 +6,7 @@ from tablib import Dataset
 
 from django.utils.translation import gettext_lazy as _
 from django.views.generic.edit import FormView
-from django.shortcuts import Http404
+from django.shortcuts import Http404, get_object_or_404
 from django.utils.dateparse import parse_datetime
 from django.http import HttpResponse
 from dashboard.tables import DeviceTable
@@ -36,6 +36,10 @@ class UnassignedDevicesView(DeviceTableMixin, InventaryMixin):
     def get_devices(self, user, offset=0, limit=None):
         return Device.get_unassigned(self.request.user.institution, offset, limit)
 
+    def get_all_device_ids(self):
+        devices, _ = self.get_devices(self.request.user, offset=0, limit=None)
+        return [d.pk for d in devices]
+
 
 class AllDevicesView(DeviceTableMixin, InventaryMixin):
     template_name = "unassigned_devices.html"
@@ -45,6 +49,10 @@ class AllDevicesView(DeviceTableMixin, InventaryMixin):
 
     def get_devices(self, user, offset=0, limit=None):
         return Device.get_all(self.request.user.institution, offset, limit)
+
+    def get_all_device_ids(self):
+        devices, _ = self.get_devices(self.request.user, offset=0, limit=None)
+        return [d.pk for d in devices]
 
 
 class LotDashboardView(ExportMixin, SingleTableMixin, InventaryMixin, DetailsMixin):
@@ -90,6 +98,7 @@ class LotDashboardView(ExportMixin, SingleTableMixin, InventaryMixin, DetailsMix
             current_state = device.get_current_state()
             row.record.update({
                 'shortid': device.shortid,
+                'link_pk': device.link_pk,
                 'type': device.type,
                 'manufacturer': getattr(device, 'manufacturer', ''),
                 'model': getattr(device, 'model', ''),
@@ -162,6 +171,7 @@ class LotDashboardView(ExportMixin, SingleTableMixin, InventaryMixin, DetailsMix
                 current_state = device.get_current_state()
                 table_data.append({
                     'id': device.pk,
+                    'link_pk': device.link_pk,
                     'shortid': device.shortid,
                     'type': device.type,
                     'manufacturer': getattr(device, 'manufacturer', ''),
@@ -278,6 +288,20 @@ class LotDashboardView(ExportMixin, SingleTableMixin, InventaryMixin, DetailsMix
         return StateDefinition.objects.filter(
             institution=self.request.user.institution
         ).order_by('order')
+
+    def get_all_device_ids(self):
+        if not hasattr(self, 'object') or self.object is None:
+            self.object = get_object_or_404(
+                self.model,
+                pk=self.kwargs['pk'],
+                owner=self.request.user.institution,
+            )
+        chids = list(self._get_chids_qs())
+        search_query = self.request.GET.get('q', '').lower()
+        if search_query:
+            owner = self.request.user.institution
+            chids = [x for x in chids if Device(id=x, lot=self.object, owner=owner).matches_query(search_query)]
+        return chids
 
     def create_export(self, export_format):
         if export_format in ('csv', 'xlsx'):

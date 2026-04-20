@@ -44,14 +44,16 @@
     </div>
     {% endif %}
 
+    {% if count > 0 %}
     <!-- Main Table Section -->
-    <div class="card mb-4">
+    <div class="mb-4">
         <form method="post" id="devices-form">
         {% csrf_token %}
+        <input type="hidden" name="select_all_pages" id="select-all-pages-flag" value="false">
         <!-- Table Actions -->
-        <div class="p-3 bg-light border-bottom">
+        <div class="pb-4 pt-3">
             <!-- First row -->
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <!-- Table title -->
                 <h5 class="mb-0">
                     {% if lot.name %}
@@ -101,7 +103,34 @@
 
             <!-- Second row  -->
             {% csrf_token %}
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex flex-wrap-reverse flex-sm-wrap justify-content-start align-items-center gap-2">
+                <!-- Select checkbox + dropdown label -->
+                {% if count > 0 %}
+                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                    <input type="checkbox" id="select-all-checkbox" class="form-check-input mt-0">
+                    <div class="dropdown">
+                        <span class="form-check-label text-muted dropdown-toggle ps-1"
+                              data-bs-toggle="dropdown" aria-expanded="false"
+                              style="cursor: pointer; user-select: none;">
+                            {% trans "Select" %}
+                            <span id="selection-count" class="badge bg-secondary d-none ms-1"></span>
+                        </span>
+                        <ul class="dropdown-menu" aria-labelledby="selectDropdown">
+                            <li>
+                                <a class="dropdown-item" id="select-page-option" href="#">
+                                    {% trans "Select page" %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" id="select-all-option" href="#">
+                                    {% trans "Select all" %} {{ count }} {% trans "devices" %}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Second row first cell-->
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <!-- Change state dropdown -->
@@ -142,19 +171,12 @@
                     {% endif %}
                 </div>
             </div>
-    </div>
+        </div>
 
             <!-- Table and pagination -->
-            {% if count > 0 %}
             <div class="table-responsive">
                 {% render_table table %}
             </div>
-            {% else %}
-            <div class="text-center text-muted py-5">
-                <i class="bi bi-inbox h1"></i>
-                <p class="mt-2">{% trans "No devices found" %}</p>
-            </div>
-            {% endif %}
         </form>
 
         <div class="d-flex flex-wrap align-items-center gap-2 justify-content-end p-2">
@@ -186,50 +208,119 @@
                     {% endfor %}
                 </form>
             </div>
-
         </div>
-
     </div>
+
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox h1"></i>
+        <p class="mt-2">{% trans "No devices found" %}</p>
+    </div>
+    {% endif %}
 
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            const selectAll = document.querySelector('#select-all');
+            const masterCheckbox = document.getElementById('select-all-checkbox');
             const checkboxes = document.querySelectorAll('input[name="devices"]');
             const addButton = document.getElementById('add-button');
             const removeButton = document.getElementById('remove-button');
             const changeStateButton = document.getElementById('addStateDropdown');
             const addBeneficiaryButton = document.getElementById('add-beneficiary-button');
+            const selectAllFlag = document.getElementById('select-all-pages-flag');
+            const selectionCount = document.getElementById('selection-count');
+            const totalCount = {{ count }};
+            const totalPages = {{ total_pages|default:1 }};
+
+            let selectAllMode = false;
 
             function updateButtons() {
-                // Check if at least one checkbox is selected
-                const checked = document.querySelectorAll('.select-checkbox:checked').length > 0;
-                // Enable/disable buttons based on selection
-                addButton.disabled = !checked;
-                changeStateButton.classList.toggle('disabled', !checked);
-                if (removeButton) {
-                    removeButton.disabled = !checked;
-                }
-                if(addBeneficiaryButton) {
-                    addBeneficiaryButton.disabled = !checked;
+                const anyChecked = selectAllMode || document.querySelectorAll('.select-checkbox:checked').length > 0;
+                addButton.disabled = !anyChecked;
+                changeStateButton.classList.toggle('disabled', !anyChecked);
+                if (removeButton) removeButton.disabled = !anyChecked;
+                if (addBeneficiaryButton) addBeneficiaryButton.disabled = (selectAllMode && totalPages > 1) || !anyChecked;
+            }
+
+            function updateMasterCheckbox() {
+                const checkedCount = document.querySelectorAll('.select-checkbox:checked').length;
+                if (selectAllMode || checkedCount === checkboxes.length) {
+                    masterCheckbox.checked = true;
+                    masterCheckbox.indeterminate = false;
+                } else if (checkedCount === 0) {
+                    masterCheckbox.checked = false;
+                    masterCheckbox.indeterminate = false;
+                } else {
+                    masterCheckbox.checked = false;
+                    masterCheckbox.indeterminate = true;
                 }
             }
 
+            function updateSelectionCount() {
+                if (selectAllMode) {
+                    selectionCount.textContent = totalCount;
+                    selectionCount.classList.remove('d-none');
+                } else {
+                    const n = document.querySelectorAll('.select-checkbox:checked').length;
+                    if (n > 0) {
+                        selectionCount.textContent = n;
+                        selectionCount.classList.remove('d-none');
+                    } else {
+                        selectionCount.classList.add('d-none');
+                    }
+                }
+            }
 
-            selectAll.addEventListener('change', (e) => {
-                checkboxes.forEach(checkbox => checkbox.checked = e.target.checked);
+            // Master checkbox: toggle all on/off
+            masterCheckbox.addEventListener('change', () => {
+                if (masterCheckbox.checked) {
+                    // Select page by default when checking manually
+                    checkboxes.forEach(cb => cb.checked = true);
+                } else {
+                    selectAllMode = false;
+                    selectAllFlag.value = 'false';
+                    checkboxes.forEach(cb => cb.checked = false);
+                }
+                updateSelectionCount();
                 updateButtons();
             });
 
-            // Add event listeners to all checkboxes
+            document.getElementById('select-page-option').addEventListener('click', (e) => {
+                e.preventDefault();
+                selectAllMode = false;
+                selectAllFlag.value = 'false';
+                checkboxes.forEach(cb => cb.checked = true);
+                updateMasterCheckbox();
+                updateSelectionCount();
+                updateButtons();
+            });
+
+            document.getElementById('select-all-option').addEventListener('click', (e) => {
+                e.preventDefault();
+                selectAllMode = true;
+                selectAllFlag.value = 'true';
+                checkboxes.forEach(cb => cb.checked = true);
+                updateMasterCheckbox();
+                updateSelectionCount();
+                updateButtons();
+            });
+
             checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', updateButtons);
+                checkbox.addEventListener('change', () => {
+                    if (selectAllMode) {
+                        selectAllMode = false;
+                        selectAllFlag.value = 'false';
+                    }
+                    updateMasterCheckbox();
+                    updateSelectionCount();
+                    updateButtons();
+                });
             });
 
             // Initialize button states on reload
             updateButtons();
-
+            updateSelectionCount();
 
         });
     </script>{% endblock %}
